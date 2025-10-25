@@ -11,13 +11,13 @@ public:
     ~MemoryManager();
 
     void initialize(size_t sizeInWords);
-    void shutDown();
+    void shutdown();
     void *allocate(size_t sizeInBytes);
     void free(void *address);
     void setAllocator(std::function<int(int, void *)> allocator);
     int dumpMemoryMap(char *filename);
     void *getList();
-    void *getBitMap();
+    void *getBitmap();
     unsigned getWordSize();
     void *getMemoryStart();
     unsigned getMemoryLimit();
