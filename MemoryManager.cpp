@@ -25,7 +25,14 @@ MemoryManager::~MemoryManager() {
 }
 
 void MemoryManager::initialize(size_t sizeInWords) {
-    
+    if (memoryStart) {
+        shutdown();
+    }
+
+    size_t requestedBytes = sizeInWords * wordSize;
+    if (sizeInWords > 65535) {
+        requestedBytes = 65535 * wordSize;
+    }
 }
 
 void MemoryManager::shutdown() {
