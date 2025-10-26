@@ -1,76 +1,60 @@
 #include "MemoryManager.h"
-#include <unistd.h> 
+#include <sys/mman.h>
+#include <unistd.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <string.h>
-#include <sstream>
-#include <cmath>
-#include <vector>
 #include <string>
-#include <utility>
+#include <sstream>
+#include <cstring>
+#include <cmath>
 
-using namespace std;
-
-MemoryManager::MemoryManager(unsigned wordSize, function<int(int, void *)> allocator)
-    : wordSize(wordSize),
-      allocator(allocator),
-      memoryStart(nullptr),
-      alignedStart(nullptr),
-      memoryLimit(0),
-      headNode(nullptr) {}
+MemoryManager::MemoryManager(unsigned wordSize, std::function<int(int, void *)> allocator)
+    : m_wordSize(wordSize), m_allocator(allocator), m_totalWords(0),
+      m_memoryLimit(0), m_memoryStart(nullptr) {
+}
 
 MemoryManager::~MemoryManager() {
     shutdown();
 }
 
 void MemoryManager::initialize(size_t sizeInWords) {
-    if (memoryStart) {
+    if (m_memoryStart) {
         shutdown();
     }
 
-    size_t requestedBytes = sizeInWords * wordSize;
     if (sizeInWords > 65535) {
-        requestedBytes = 65535 * wordSize;
+        sizeInWords = 65535;
     }
+
+    m_totalWords = sizeInWords;
+    m_memoryLimit = m_totalWords * m_wordSize;
+
+    m_memoryStart = mmap(
+        NULL,
+        m_memoryLimit,
+        PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS,
+        -1,            
+        0           
+    );
+
+    if (m_memoryStart == MAP_FAILED) {
+        m_memoryStart = nullptr;
+        m_memoryLimit = 0;
+        m_totalWords = 0;
+        return;
+    }
+
+    m_blocks.clear();
+    m_blocks.emplace_back(0, m_totalWords, true); // one big hole
 }
 
 void MemoryManager::shutdown() {
+    if (m_memoryStart) {
+        munmap(m_memoryStart, m_memoryLimit);
+    }
 
+    m_blocks.clear();
+    m_memoryStart = nullptr;
+    m_memoryLimit = 0;
+    m_totalWords = 0;
 }
-
-void *MemoryManager::allocate(size_t sizeInBytes) {
-
-}
-
-void MemoryManager::free(void *address) {}
-
-void MemoryManager::setAllocator(function<int(int, void *)> allocator) {}
-
-int MemoryManager::dumpMemoryMap(char *filename) {}
-
-void *MemoryManager::getList() {}
-
-void *MemoryManager::getBitmap() {}
-
-unsigned MemoryManager::getWordSize() {
-    return wordSize;
-}
-
-void *MemoryManager::getMemoryStart() {
-    return alignedStart;
-}
-
-unsigned MemoryManager::getMemoryLimit() {
-    return memoryLimit;
-}
-
-size_t MemoryManager::align(size_t size) {}
-
-void MemoryManager::mergeNext(MemoryBlock *block) {}
-
-void MemoryManager::splitBlock(MemoryBlock *block, size_t requiredSize) {}
-
-int bestFit(int sizeInWords, void *list) {}
-
-int worstFit(int sizeInWords, void *list) {}

@@ -1,13 +1,21 @@
-#ifndef MEMORYMANAGER_H
-#define MEMORYMANAGER_H
+#pragma once
 
 #include <functional>
+#include <list>
 #include <cstddef>
+#include <cstdint>
+
+struct MemoryBlock {
+    size_t offset;
+    size_t length;
+    bool is_hole;
+
+    MemoryBlock(size_t o, size_t l, bool h) : offset(o), length(l), is_hole(h) {}
+};
 
 class MemoryManager {
 public:
-
-    MemoryManager(unsigned wordSize, std::function<int(int, void*)> allocator);
+    MemoryManager(unsigned wordSize, std::function<int(int, void *)> allocator);
     ~MemoryManager();
 
     void initialize(size_t sizeInWords);
@@ -16,34 +24,20 @@ public:
     void free(void *address);
     void setAllocator(std::function<int(int, void *)> allocator);
     int dumpMemoryMap(char *filename);
+
     void *getList();
     void *getBitmap();
-    unsigned getWordSize();
-    void *getMemoryStart();
-    unsigned getMemoryLimit();
+    unsigned getWordSize() { return m_wordSize; }
+    void *getMemoryStart() { return m_memoryStart; }
+    unsigned getMemoryLimit() { return m_memoryLimit; }
 
 private:
+    void mergeHoles();
 
-    struct MemoryBlock {
-        bool is_free;
-        size_t size;
-        MemoryBlock *prev;
-        MemoryBlock *next;
-    };
-
-    unsigned wordSize;
-    std::function<int(int, void *)> allocator;
-    void *memoryStart;
-    void *alignedStart;
-    size_t memoryLimit;
-    MemoryBlock *headNode;
-
-    void mergeNext(MemoryBlock *block);
-    void splitBlock(MemoryBlock *block, size_t requiredSize);
-    size_t align(size_t size);
+    unsigned m_wordSize;
+    size_t m_totalWords;
+    unsigned m_memoryLimit;
+    void *m_memoryStart;
+    std::function<int(int, void *)> m_allocator; 
+    std::list<MemoryBlock> m_blocks; 
 };
-
-int bestFit(int sizeInWords, void *list);
-int worstFit(int sizeInWords, void *list);
-
-#endif
