@@ -175,3 +175,33 @@ void *MemoryManager::getList() {
     }
     return data;
 }
+
+int MemoryManager::dumpMemoryMap(char *filename) {
+    int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd == -1) {
+        return -1;
+    }
+
+    std::stringstream ss;
+    bool first = true;
+    for (const auto& block : m_blocks) {
+        if (block.is_hole) {
+            if (!first) {
+                ss << " "; // Add space between entries
+            }
+            ss << "[" << block.offset << ", " << block.length << "]";
+            first = false;
+        }
+    }
+    std::string mapString = ss.str(); // e.g., "[0, 10] [12, 2]"
+
+    ssize_t bytesWritten = write(fd, mapString.c_str(), mapString.length());
+    
+    close(fd);
+
+    if (bytesWritten != static_cast<ssize_t>(mapString.length())) {
+        return -1;
+    }
+
+    return 0; // Success
+}
