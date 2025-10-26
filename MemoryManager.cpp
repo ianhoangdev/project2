@@ -58,3 +58,84 @@ void MemoryManager::shutdown() {
     m_memoryLimit = 0;
     m_totalWords = 0;
 }
+
+void *MemoryManager::allocate(size_t sizeInBytes) {
+    if (sizeInBytes == 0 || !m_memoryStart) {
+        return nullptr;
+    }
+
+    size_t wordsNeeded = std::ceil(static_cast<double>(sizeInBytes) / m_wordSize);
+
+    void *holeList = getList();
+    if (!holeList) {
+        return nullptr;
+    }
+
+    int offset = m_allocator(wordsNeeded, holeList);
+
+    // delete the list created by getList()
+    delete[] static_cast<uint8_t*>(holeList);
+
+    if (offset == -1) {
+        return nullptr;
+    }
+
+    for (auto it = m_blocks.begin(); it != m_blocks.end(); ++it) {
+        if (it->is_hole && it->offset == static_cast<size_t>(offset)) {
+            if (it->length == wordsNeeded) {
+                it->is_hole = false;
+            } else {
+                // split the block 
+                // create a new hole for the remainder
+                size_t remainingLength = it->length - wordsNeeded;
+                size_t newHoleOffset = it->offset + wordsNeeded;
+                m_blocks.insert(std::next(it), MemoryBlock(newHoleOffset, remainingLength, true));
+                
+                // resize this block and mark it as allocated
+                it->length = wordsNeeded;
+                it->is_hole = false;
+            }
+            
+            return static_cast<uint8_t*>(m_memoryStart) + (it->offset * m_wordSize);
+        }
+    }
+    return nullptr;
+}
+
+void MemoryManager::free(void *address) {
+    if (!address || !m_memoryStart) {
+        return;
+    }
+
+    size_t byteOffset = static_cast<uint8_t*>(address) - static_cast<uint8_t*>(m_memoryStart);
+    size_t wordOffset = byteOffset / m_wordSize;
+
+    // find the allocated block
+    for (auto it = m_blocks.begin(); it != m_blocks.end(); ++it) {
+        if (!it->is_hole && it->offset == wordOffset) {
+            it->is_hole = true;
+            
+            mergeHoles();
+            return;
+        }
+    }
+}
+
+void MemoryManager::mergeHoles() {
+    auto it = m_blocks.begin();
+    while (it != m_blocks.end()) {
+        if (!it->is_hole) {
+            ++it;
+            continue;
+        }
+
+        auto next = std::next(it);
+        if (next != m_blocks.end() && next->is_hole) {
+            // if next block is also a hole, merge both blocks into one
+            it->length += next->length;
+            m_blocks.erase(next);
+        } else {
+            ++it;
+        }
+    }
+}
