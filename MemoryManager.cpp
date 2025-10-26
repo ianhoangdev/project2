@@ -139,3 +139,39 @@ void MemoryManager::mergeHoles() {
         }
     }
 }
+
+void *MemoryManager::getList() {
+    if (!m_memoryStart) {
+        return nullptr;
+    }
+
+    uint16_t holeCount = 0;
+    for (const auto& block : m_blocks) {
+        if (block.is_hole) {
+            holeCount++;
+        }
+    }
+
+    if (holeCount == 0) {
+        return nullptr;
+    }
+
+    // 2 bytes for count + (holes * 4 bytes/hole)
+    size_t arraySize = 2 + (holeCount * 4);
+    uint8_t* data = new uint8_t[arraySize];
+
+    memcpy(data, &holeCount, 2);
+
+    uint8_t* current = data + 2; // start writing after the 2-byte count
+    for (const auto& block : m_blocks) {
+        if (block.is_hole) {
+            uint16_t offset = static_cast<uint16_t>(block.offset);
+            uint16_t length = static_cast<uint16_t>(block.length);
+
+            memcpy(current, &offset, 2);
+            memcpy(current + 2, &length, 2);
+            current += 4;
+        }
+    }
+    return data;
+}
