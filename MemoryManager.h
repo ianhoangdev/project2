@@ -14,7 +14,7 @@ struct MemoryBlock {
 };
 
 int bestFit(int sizeInWords, void *list);
-int worstFit(int sizeInWords, void *list)
+int worstFit(int sizeInWords, void *list);
 
 class MemoryManager {
 public:

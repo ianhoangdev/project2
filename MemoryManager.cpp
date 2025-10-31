@@ -70,6 +70,10 @@ MemoryManager::~MemoryManager() {
     shutdown();
 }
 
+void MemoryManager::setAllocator(std::function<int(int, void *)> allocator) {
+    m_allocator = allocator;
+}
+
 void MemoryManager::initialize(size_t sizeInWords) {
     if (m_memoryStart) {
         shutdown();
@@ -100,6 +104,39 @@ void MemoryManager::initialize(size_t sizeInWords) {
 
     m_blocks.clear();
     m_blocks.emplace_back(0, m_totalWords, true); // one big hole
+}
+
+void *MemoryManager::getBitmap() {
+    if (!m_memoryStart) {
+        return nullptr;
+    }
+
+    uint16_t bitmapByteSize = static_cast<uint16_t>(std::ceil(static_cast<double>(m_totalWords) / 8.0));
+    
+    size_t totalArraySize = 2 + bitmapByteSize;
+    uint8_t* data = new uint8_t[totalArraySize];
+
+    memset(data, 0, totalArraySize);
+    memcpy(data, &bitmapByteSize, 2);
+
+    uint8_t* bitmap = data + 2; 
+
+    for (const auto& block : m_blocks) {
+        if (!block.is_hole) { 
+            for (size_t i = 0; i < block.length; ++i) {
+                size_t wordIndex = block.offset + i;
+                
+                size_t byteIndex = wordIndex / 8;
+                int bitPosition = wordIndex % 8;
+
+                if (byteIndex < bitmapByteSize) { // Safety bounds check
+                    bitmap[byteIndex] |= (1 << bitPosition);
+                }
+            }
+        }
+    }
+
+    return data;
 }
 
 void MemoryManager::shutdown() {
