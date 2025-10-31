@@ -62,8 +62,11 @@ int worstFit(int sizeInWords, void *list) {
 }
 
 MemoryManager::MemoryManager(unsigned wordSize, std::function<int(int, void *)> allocator)
-    : m_wordSize(wordSize), m_allocator(allocator), m_totalWords(0),
-      m_memoryLimit(0), m_memoryStart(nullptr) {
+    : m_wordSize(wordSize), 
+      m_totalWords(0),
+      m_memoryLimit(0), 
+      m_memoryStart(nullptr),
+      m_allocator(allocator) {
 }
 
 MemoryManager::~MemoryManager() {
