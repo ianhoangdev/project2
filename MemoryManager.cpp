@@ -6,6 +6,7 @@
 #include <sstream>
 #include <cstring>
 #include <cmath>
+#include <climits>
 
 uint16_t read_u16(void* ptr) {
     uint16_t val;
@@ -277,7 +278,7 @@ int MemoryManager::dumpMemoryMap(char *filename) {
     for (const auto& block : m_blocks) {
         if (block.is_hole) {
             if (!first) {
-                ss << " ";
+                ss << " - ";
             }
             ss << "[" << block.offset << ", " << block.length << "]";
             first = false;
