@@ -103,7 +103,7 @@ void MemoryManager::initialize(size_t sizeInWords) {
     }
 
     m_blocks.clear();
-    m_blocks.emplace_back(0, m_totalWords, true); // one big hole
+    m_blocks.emplace_back(0, m_totalWords, true);
 }
 
 void *MemoryManager::getBitmap() {
@@ -164,7 +164,6 @@ void *MemoryManager::allocate(size_t sizeInBytes) {
 
     int offset = m_allocator(wordsNeeded, holeList);
 
-    // delete the list created by getList()
     delete[] static_cast<uint8_t*>(holeList);
 
     if (offset == -1) {
@@ -176,13 +175,10 @@ void *MemoryManager::allocate(size_t sizeInBytes) {
             if (it->length == wordsNeeded) {
                 it->is_hole = false;
             } else {
-                // split the block 
-                // create a new hole for the remainder
                 size_t remainingLength = it->length - wordsNeeded;
                 size_t newHoleOffset = it->offset + wordsNeeded;
                 m_blocks.insert(std::next(it), MemoryBlock(newHoleOffset, remainingLength, true));
                 
-                // resize this block and mark it as allocated
                 it->length = wordsNeeded;
                 it->is_hole = false;
             }
@@ -278,13 +274,13 @@ int MemoryManager::dumpMemoryMap(char *filename) {
     for (const auto& block : m_blocks) {
         if (block.is_hole) {
             if (!first) {
-                ss << " "; // Add space between entries
+                ss << " ";
             }
             ss << "[" << block.offset << ", " << block.length << "]";
             first = false;
         }
     }
-    std::string mapString = ss.str(); // e.g., "[0, 10] [12, 2]"
+    std::string mapString = ss.str();
 
     ssize_t bytesWritten = write(fd, mapString.c_str(), mapString.length());
     
@@ -294,5 +290,5 @@ int MemoryManager::dumpMemoryMap(char *filename) {
         return -1;
     }
 
-    return 0; // Success
+    return 0;
 }
