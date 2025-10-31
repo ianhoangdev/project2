@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -g
 
-SRCS = MemoryManager.cpp Allocators.cpp
+SRCS = MemoryManager.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 TARGET_LIB = libMemoryManager.a

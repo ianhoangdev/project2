@@ -13,6 +13,9 @@ struct MemoryBlock {
     MemoryBlock(size_t o, size_t l, bool h) : offset(o), length(l), is_hole(h) {}
 };
 
+int bestFit(int sizeInWords, void *list);
+int worstFit(int sizeInWords, void *list)
+
 class MemoryManager {
 public:
     MemoryManager(unsigned wordSize, std::function<int(int, void *)> allocator);
