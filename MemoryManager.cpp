@@ -74,10 +74,6 @@ MemoryManager::~MemoryManager() {
     shutdown();
 }
 
-void MemoryManager::setAllocator(std::function<int(int, void *)> allocator) {
-    m_allocator = allocator;
-}
-
 void MemoryManager::initialize(size_t sizeInWords) {
     if (m_memoryStart) {
         shutdown();
@@ -108,39 +104,6 @@ void MemoryManager::initialize(size_t sizeInWords) {
 
     m_blocks.clear();
     m_blocks.emplace_back(0, m_totalWords, true);
-}
-
-void *MemoryManager::getBitmap() {
-    if (!m_memoryStart) {
-        return nullptr;
-    }
-
-    uint16_t bitmapByteSize = static_cast<uint16_t>(std::ceil(static_cast<double>(m_totalWords) / 8.0));
-    
-    size_t totalArraySize = 2 + bitmapByteSize;
-    uint8_t* data = new uint8_t[totalArraySize];
-
-    memset(data, 0, totalArraySize);
-    memcpy(data, &bitmapByteSize, 2);
-
-    uint8_t* bitmap = data + 2; 
-
-    for (const auto& block : m_blocks) {
-        if (!block.is_hole) { 
-            for (size_t i = 0; i < block.length; ++i) {
-                size_t wordIndex = block.offset + i;
-                
-                size_t byteIndex = wordIndex / 8;
-                int bitPosition = wordIndex % 8;
-
-                if (byteIndex < bitmapByteSize) { // Safety bounds check
-                    bitmap[byteIndex] |= (1 << bitPosition);
-                }
-            }
-        }
-    }
-
-    return data;
 }
 
 void MemoryManager::shutdown() {
@@ -231,6 +194,40 @@ void MemoryManager::mergeHoles() {
     }
 }
 
+void MemoryManager::setAllocator(std::function<int(int, void *)> allocator) {
+    m_allocator = allocator;
+}
+
+int MemoryManager::dumpMemoryMap(char *filename) {
+    int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd == -1) {
+        return -1;
+    }
+
+    std::stringstream ss;
+    bool first = true;
+    for (const auto& block : m_blocks) {
+        if (block.is_hole) {
+            if (!first) {
+                ss << " - ";
+            }
+            ss << "[" << block.offset << ", " << block.length << "]";
+            first = false;
+        }
+    }
+    std::string mapString = ss.str();
+
+    ssize_t bytesWritten = write(fd, mapString.c_str(), mapString.length());
+    
+    close(fd);
+
+    if (bytesWritten != static_cast<ssize_t>(mapString.length())) {
+        return -1;
+    }
+
+    return 0;
+}
+
 void *MemoryManager::getList() {
     if (!m_memoryStart) {
         return nullptr;
@@ -267,32 +264,35 @@ void *MemoryManager::getList() {
     return data;
 }
 
-int MemoryManager::dumpMemoryMap(char *filename) {
-    int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd == -1) {
-        return -1;
+void *MemoryManager::getBitmap() {
+    if (!m_memoryStart) {
+        return nullptr;
     }
 
-    std::stringstream ss;
-    bool first = true;
+    uint16_t bitmapByteSize = static_cast<uint16_t>(std::ceil(static_cast<double>(m_totalWords) / 8.0));
+    
+    size_t totalArraySize = 2 + bitmapByteSize;
+    uint8_t* data = new uint8_t[totalArraySize];
+
+    memset(data, 0, totalArraySize);
+    memcpy(data, &bitmapByteSize, 2);
+
+    uint8_t* bitmap = data + 2; 
+
     for (const auto& block : m_blocks) {
-        if (block.is_hole) {
-            if (!first) {
-                ss << " - ";
+        if (!block.is_hole) { 
+            for (size_t i = 0; i < block.length; ++i) {
+                size_t wordIndex = block.offset + i;
+                
+                size_t byteIndex = wordIndex / 8;
+                int bitPosition = wordIndex % 8;
+
+                if (byteIndex < bitmapByteSize) { // Safety bounds check
+                    bitmap[byteIndex] |= (1 << bitPosition);
+                }
             }
-            ss << "[" << block.offset << ", " << block.length << "]";
-            first = false;
         }
     }
-    std::string mapString = ss.str();
 
-    ssize_t bytesWritten = write(fd, mapString.c_str(), mapString.length());
-    
-    close(fd);
-
-    if (bytesWritten != static_cast<ssize_t>(mapString.length())) {
-        return -1;
-    }
-
-    return 0;
+    return data;
 }
